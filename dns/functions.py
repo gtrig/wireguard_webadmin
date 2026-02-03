@@ -83,7 +83,11 @@ server:
     if static_hosts:
         unbound_config += '\nlocal-zone: "." transparent\n'
         for static_host in static_hosts:
-            unbound_config += f'    local-data: "{static_host.hostname}. IN A {static_host.ip_address}"\n'
+            if static_host.is_wildcard:
+                unbound_config += f'    local-data: "{static_host.hostname}. IN A {static_host.ip_address}"\n'
+                unbound_config += f'    local-data: "*.{static_host.hostname}. IN A {static_host.ip_address}"\n'
+            else:
+                unbound_config += f'    local-data: "{static_host.hostname}. IN A {static_host.ip_address}"\n'
     return unbound_config
 
 
@@ -101,6 +105,8 @@ def generate_dnsdist_config():
     if static_hosts:
         dnsdist_config += "addAction(makeRule(''), PoolAction('staticHosts'))\n"
         for static_host in static_hosts:
+            if static_host.is_wildcard:
+                dnsdist_config += f"addLocal('*.{static_host.hostname}', '{static_host.ip_address}')\n"
             dnsdist_config += f"addLocal('{static_host.hostname}', '{static_host.ip_address}')\n"
 
     return dnsdist_config
@@ -124,7 +130,11 @@ bind-interfaces
     if static_hosts:
         dnsmasq_config += '\n'
         for static_host in static_hosts:
-            dnsmasq_config += f'address=/{static_host.hostname}/{static_host.ip_address}\n'
+            # dnsmasq: leading dot means domain and all subdomains (wildcard)
+            if static_host.is_wildcard:
+                dnsmasq_config += f'address=/.{static_host.hostname}/{static_host.ip_address}\n'
+            else:
+                dnsmasq_config += f'address=/{static_host.hostname}/{static_host.ip_address}\n'
 
     if dns_lists:
         dnsmasq_config += '\n'

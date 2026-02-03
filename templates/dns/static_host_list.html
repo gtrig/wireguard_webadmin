@@ -16,6 +16,7 @@
                                 <tr>
                                     <th>{% trans 'Hostname' %}</th>
                                     <th>{% trans 'IP Address' %}</th>
+                                    <th>{% trans 'Wildcard' %}</th>
                                     <th></th>
                                 </tr>
                                 </thead>
@@ -23,8 +24,9 @@
                                 {% if static_host_list %}
                                     {% for static_host in static_host_list %}
                                         <tr>
-                                            <td>{{ static_host.hostname }}</td>
+                                            <td>{{ static_host.hostname }}{% if static_host.is_wildcard %} <span class="text-muted">(*.{{ static_host.hostname }})</span>{% endif %}</td>
                                             <td>{{ static_host.ip_address }}</td>
+                                            <td>{% if static_host.is_wildcard %}<i class="fas fa-globe" title="{% trans 'Domain and all subdomains' %}"></i>{% else %}-{% endif %}</td>
                                             <td class="min-width">
                                                 <a href="/dns/manage_static_host/?uuid={{ static_host.uuid }}"><i class="fas fa-edit"></i></a>
                                             </td>
@@ -32,7 +34,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="3"></td>
+                                        <td colspan="4"></td>
                                     </tr>
                                 {% endif %}
                                 </tbody>

@@ -17,6 +17,10 @@ class DNSSettings(models.Model):
 class StaticHost(models.Model):
     hostname = models.CharField(max_length=100, unique=True)
     ip_address = models.GenericIPAddressField()
+    is_wildcard = models.BooleanField(
+        default=False,
+        help_text='If set, this domain and all its subdomains resolve to the given IP (e.g. example.com matches *.example.com)',
+    )
 
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)

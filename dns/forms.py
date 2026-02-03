@@ -56,7 +56,7 @@ class DNSSettingsForm(forms.ModelForm):
 class StaticHostForm(forms.ModelForm):
     class Meta:
         model = StaticHost
-        fields = ['hostname', 'ip_address']
+        fields = ['hostname', 'ip_address', 'is_wildcard']
 
     def __init__(self, *args, **kwargs):
         super(StaticHostForm, self).__init__(*args, **kwargs)
@@ -64,6 +64,10 @@ class StaticHostForm(forms.ModelForm):
         self.helper.form_method = 'post'
         self.fields['hostname'].label = _('Hostname')
         self.fields['ip_address'].label = _('IP Address')
+        self.fields['is_wildcard'].label = _('Wildcard domain')
+        self.fields['is_wildcard'].help_text = _(
+            'Match this domain and all subdomains (e.g. example.com matches www.example.com, api.example.com, etc.)'
+        )
         back_label = _('Back')
         delete_label = _('Delete')
         if self.instance.pk:
@@ -76,6 +80,7 @@ class StaticHostForm(forms.ModelForm):
                 Div(
                     Field('hostname', css_class='form-control'),
                     Field('ip_address', css_class='form-control'),
+                    Field('is_wildcard', css_class='form-check-input'),
                     css_class='col-md-6'
                 ),
             ),
@@ -89,11 +94,20 @@ class StaticHostForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         hostname = cleaned_data.get('hostname')
+        is_wildcard = cleaned_data.get('is_wildcard', False)
         if hostname:
-            regex = r'^[a-zA-Z][a-zA-Z0-9-\.]*[a-zA-Z0-9]$'
+            # Normalize wildcard: store "example.com" even if user entered "*.example.com"
+            if hostname.startswith('*.'):
+                hostname = hostname[2:].strip()
+                cleaned_data['hostname'] = hostname
+                cleaned_data['is_wildcard'] = True
+            if not hostname:
+                raise ValidationError(_('Invalid hostname'))
+            # Allow letters, digits, hyphens, dots; must start with letter or digit, end with letter or digit
+            regex = r'^[a-zA-Z0-9][a-zA-Z0-9.-]*[a-zA-Z0-9]$'
             if not re.match(regex, hostname):
-                raise ValidationError('Invalid hostname')
-        return
+                raise ValidationError(_('Invalid hostname'))
+        return cleaned_data
 
 
 class DNSFilterListForm(forms.ModelForm):

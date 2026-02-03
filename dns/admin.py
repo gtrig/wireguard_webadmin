@@ -20,7 +20,8 @@ admin.site.register(DNSSettings, DNSSettingsAdmin)
 
 
 class StaticHostAdmin(admin.ModelAdmin):
-    list_display = ('hostname', 'ip_address', 'created', 'updated')
+    list_display = ('hostname', 'ip_address', 'is_wildcard', 'created', 'updated')
+    list_filter = ('is_wildcard',)
     search_fields = ('hostname', 'ip_address')
     ordering = ('hostname', 'created')
 admin.site.register(StaticHost, StaticHostAdmin)
