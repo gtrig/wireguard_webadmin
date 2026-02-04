@@ -159,6 +159,23 @@ def generate_redirect_dns_rules():
     return dns_redirect_rules
 
 
+def generate_redirect_nginx_rules():
+    """Redirect VPN traffic to the gateway IP (ports 80/443) to the nginx container so VPN clients can access the web admin."""
+    wireguard_instance_list = WireGuardInstance.objects.all()
+    firewall_settings, firewall_settings_created = FirewallSettings.objects.get_or_create(name='global')
+    nginx_redirect_rules = ''
+    nginx_redirect_rules += '# Nginx (web admin) redirect: allow VPN clients to access nginx via the VPN gateway IP\n'
+    nginx_redirect_rules += 'if [ -n "$NGINX_IP" ]; then\n'
+    for wireguard_instance in wireguard_instance_list:
+        nginx_redirect_rules += f"  # HTTP/HTTPS redirect for instance wg{wireguard_instance.instance_id}\n"
+        nginx_redirect_rules += f"  iptables -t nat -A WGWADM_PREROUTING  -i wg{wireguard_instance.instance_id} -d {wireguard_instance.address} -p tcp --dport 80 -j DNAT --to $NGINX_IP:80\n"
+        nginx_redirect_rules += f"  iptables -t nat -A WGWADM_PREROUTING  -i wg{wireguard_instance.instance_id} -d {wireguard_instance.address} -p tcp --dport 443 -j DNAT --to $NGINX_IP:443\n"
+        nginx_redirect_rules += f"  iptables -t filter -A WGWADM_FORWARD  -i wg{wireguard_instance.instance_id} -o {firewall_settings.wan_interface} -d $NGINX_IP -p tcp --dport 80 -j ACCEPT\n"
+        nginx_redirect_rules += f"  iptables -t filter -A WGWADM_FORWARD  -i wg{wireguard_instance.instance_id} -o {firewall_settings.wan_interface} -d $NGINX_IP -p tcp --dport 443 -j ACCEPT\n"
+    nginx_redirect_rules += 'fi\n'
+    return nginx_redirect_rules
+
+
 def generate_route_policy_rules():
     route_policy_rules = ''
     route_policy_rules += '# Route policy rules\n'
@@ -224,6 +241,8 @@ DNS_IP=$(getent hosts wireguard-webadmin-dns | awk '{{ print $1 }}')
 if [ -z "$DNS_IP" ]; then
     DNS_IP="127.0.0.250"
 fi
+
+NGINX_IP=$(getent hosts wireguard-webadmin-nginx | awk '{{ print $1 }}')
 
 iptables -t nat    -N WGWADM_POSTROUTING >> /dev/null 2>&1
 iptables -t nat    -N WGWADM_PREROUTING  >> /dev/null 2>&1
